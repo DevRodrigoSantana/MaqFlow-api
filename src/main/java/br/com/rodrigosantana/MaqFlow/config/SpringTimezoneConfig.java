@@ -1,4 +1,4 @@
-package br.com.rodrigosantana.MaqFlow.config;
+package br.com.rodrigosantana.maqflow.config;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;

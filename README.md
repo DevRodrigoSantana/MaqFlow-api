@@ -88,7 +88,7 @@ maintenance-api/
 ## Planejamento de desenvolvimento
 
 - [x] Configuração inicial do projeto Spring Boot.
-- [ ] Configuração da conexão com MySQL.
+- [x] Configuração da conexão com MySQL.
 - [ ] Modelagem das entidades e relacionamentos.
 - [ ] Implementação das entidades JPA.
 - [ ] Implementação do CRUD de usuários.
