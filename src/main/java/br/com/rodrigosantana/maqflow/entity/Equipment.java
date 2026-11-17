@@ -7,7 +7,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "equipment")
+@Table(name = "equipment", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_equipment_serial_number", columnNames = "serial_number")
+})
 public class Equipment extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -27,8 +29,17 @@ public class Equipment extends BaseEntity {
     @OneToMany(mappedBy = "equipment")
     private List<Maintenance> maintenances = new ArrayList<>();
 
-    protected Equipment() {}
+    public Equipment() {}
     public UUID getId() { return id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public String getSerialNumber() { return serialNumber; }
+    public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
+    public EquipmentStatus getStatus() { return status; }
+    public void setStatus(EquipmentStatus status) { this.status = status; }
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
+    public List<Maintenance> getMaintenances() { return maintenances; }
 }
