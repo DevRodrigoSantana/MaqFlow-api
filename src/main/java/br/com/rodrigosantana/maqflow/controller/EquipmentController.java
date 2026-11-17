@@ -32,7 +32,7 @@ public class EquipmentController {
     }
 
     @PutMapping("/{id}")
-    public EquipmentResponseDTO update(@PathVariable UUID id, @RequestBody EquipmentRequestDTO d) {
+    public EquipmentResponseDTO update(@PathVariable UUID id, @RequestBody EquipmentUpdateRequestDTO d) {
         return service.update(id, d);
     }
 

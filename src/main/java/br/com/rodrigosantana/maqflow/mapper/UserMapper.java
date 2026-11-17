@@ -6,15 +6,20 @@ import br.com.rodrigosantana.maqflow.entity.User;
 public class UserMapper {
     public User toEntity(UserRequestDTO d) {
         User u = new User();
-        update(u, d);
+        u.setName(d.name());
+        u.setEmail(d.email());
+        u.setPassword(d.password());
+        u.setRole(br.com.rodrigosantana.maqflow.enums.Role.USER);
         return u;
     }
 
-    public void update(User u, UserRequestDTO d) {
+    public void update(User u, UserUpdateRequestDTO d) {
         u.setName(d.name());
         u.setEmail(d.email());
-        if (d.password() != null && !d.password().isBlank()) u.setPassword(d.password());
-        u.setRole(d.role());
+    }
+
+    public void updatePassword(User u, UserPasswordUpdateDTO d) {
+        u.setPassword(d.newPassword());
     }
 
     public UserResponseDTO toResponse(User u) {

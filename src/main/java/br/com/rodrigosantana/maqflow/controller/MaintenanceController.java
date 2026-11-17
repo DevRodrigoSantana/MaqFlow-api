@@ -32,7 +32,7 @@ public class MaintenanceController {
     }
 
     @PutMapping("/{id}")
-    public MaintenanceResponseDTO update(@PathVariable UUID id, @RequestBody MaintenanceRequestDTO d) {
+    public MaintenanceResponseDTO update(@PathVariable UUID id, @RequestBody MaintenanceUpdateRequestDTO d) {
         return service.update(id, d);
     }
 

@@ -7,11 +7,12 @@ public class MaintenanceService {
  public MaintenanceResponseDTO create(MaintenanceRequestDTO d){validate(d);return mapper.toResponse(repo.save(mapper.toEntity(d,findEquipment(d.equipmentId()),findUser(d.registeredById()))));}
  @Transactional(readOnly=true) public MaintenanceResponseDTO get(UUID id){return mapper.toResponse(find(id));}
  @Transactional(readOnly=true) public List<MaintenanceResponseDTO> list(){return repo.findAll().stream().map(mapper::toResponse).toList();}
- public MaintenanceResponseDTO update(UUID id,MaintenanceRequestDTO d){validate(d);Maintenance m=find(id);mapper.update(m,d,findEquipment(d.equipmentId()),findUser(d.registeredById()));return mapper.toResponse(repo.save(m));}
+ public MaintenanceResponseDTO update(UUID id,MaintenanceUpdateRequestDTO d){validate(d);Maintenance m=find(id);mapper.update(m,d);return mapper.toResponse(repo.save(m));}
  public void delete(UUID id){find(id);repo.deleteById(id);}
  private Maintenance find(UUID id){return repo.findById(id).orElseThrow(()->new ResourceNotFoundException("Manutenção não encontrada: "+id));}
  private Equipment findEquipment(UUID id){if(id==null)throw new InvalidRequestException("equipmentId é obrigatório.");return equipment.findById(id).orElseThrow(()->new ResourceNotFoundException("Equipamento não encontrado: "+id));}
  private User findUser(UUID id){if(id==null)throw new InvalidRequestException("registeredById é obrigatório.");return users.findById(id).orElseThrow(()->new ResourceNotFoundException("Usuário responsável não encontrado: "+id));}
  private void validate(MaintenanceRequestDTO d){if(d==null||blank(d.description())||d.type()==null||d.status()==null||d.equipmentId()==null||d.registeredById()==null)throw new InvalidRequestException("Descrição, tipo, status, equipamento e responsável são obrigatórios.");}
+ private void validate(MaintenanceUpdateRequestDTO d){if(d==null||blank(d.description())||d.type()==null||d.status()==null)throw new InvalidRequestException("Descrição, tipo e status são obrigatórios.");}
  private boolean blank(String s){return s==null||s.isBlank();}
 }

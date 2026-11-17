@@ -6,16 +6,18 @@ import br.com.rodrigosantana.maqflow.entity.*;
 public class MaintenanceMapper {
     public Maintenance toEntity(MaintenanceRequestDTO d, Equipment e, User u) {
         Maintenance m = new Maintenance();
-        update(m, d, e, u);
-        return m;
-    }
-
-    public void update(Maintenance m, MaintenanceRequestDTO d, Equipment e, User u) {
         m.setDescription(d.description());
         m.setType(d.type());
         m.setStatus(d.status());
         m.setEquipment(e);
         m.setRegisteredBy(u);
+        return m;
+    }
+
+    public void update(Maintenance m, MaintenanceUpdateRequestDTO d) {
+        m.setDescription(d.description());
+        m.setType(d.type());
+        m.setStatus(d.status());
     }
 
     public MaintenanceResponseDTO toResponse(Maintenance m) {

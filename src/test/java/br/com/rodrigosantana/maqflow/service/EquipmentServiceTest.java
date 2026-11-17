@@ -1,6 +1,7 @@
 package br.com.rodrigosantana.maqflow.service;
 
 import br.com.rodrigosantana.maqflow.dto.equipment.EquipmentRequestDTO;
+import br.com.rodrigosantana.maqflow.dto.equipment.EquipmentUpdateRequestDTO;
 import br.com.rodrigosantana.maqflow.entity.Equipment;
 import br.com.rodrigosantana.maqflow.entity.User;
 import br.com.rodrigosantana.maqflow.enums.EquipmentStatus;
@@ -54,7 +55,7 @@ class EquipmentServiceTest {
 
         DuplicateSerialNumberException exception = assertThrows(
                 DuplicateSerialNumberException.class,
-                () -> service.update(equipmentId, request("SERIAL-002", userId)));
+                () -> service.update(equipmentId, new EquipmentUpdateRequestDTO("Torno", "Equipamento de teste", "SERIAL-002", EquipmentStatus.ACTIVE)));
 
         assertEquals("Já existe um equipamento cadastrado com este número de série", exception.getMessage());
         verify(equipment, never()).save(any(Equipment.class));

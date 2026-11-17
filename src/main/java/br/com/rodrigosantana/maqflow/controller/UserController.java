@@ -32,8 +32,13 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public UserResponseDTO update(@PathVariable UUID id, @RequestBody UserRequestDTO d) {
+    public UserResponseDTO update(@PathVariable UUID id, @RequestBody UserUpdateRequestDTO d) {
         return service.update(id, d);
+    }
+
+    @PutMapping("/{id}/password")
+    public UserResponseDTO updatePassword(@PathVariable UUID id, @RequestBody UserPasswordUpdateDTO d) {
+        return service.updatePassword(id, d);
     }
 
     @DeleteMapping("/{id}")

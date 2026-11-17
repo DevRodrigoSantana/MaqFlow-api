@@ -7,9 +7,11 @@ public class UserService {
  public UserResponseDTO create(UserRequestDTO d){validate(d);if(repo.existsByEmail(d.email()))throw new DuplicateEmailException("Email já cadastrado.");return mapper.toResponse(repo.save(mapper.toEntity(d)));}
  @Transactional(readOnly=true) public UserResponseDTO get(UUID id){return mapper.toResponse(find(id));}
  @Transactional(readOnly=true) public List<UserResponseDTO> list(){return repo.findAll().stream().map(mapper::toResponse).toList();}
- public UserResponseDTO update(UUID id,UserRequestDTO d){validate(d);User u=find(id);if(repo.existsByEmailAndIdNot(d.email(),id))throw new DuplicateEmailException("Email já cadastrado.");mapper.update(u,d);return mapper.toResponse(repo.save(u));}
+ public UserResponseDTO update(UUID id,UserUpdateRequestDTO d){validateUpdate(d);User u=find(id);if(repo.existsByEmailAndIdNot(d.email(),id))throw new DuplicateEmailException("Email já cadastrado.");mapper.update(u,d);return mapper.toResponse(repo.save(u));}
+ public UserResponseDTO updatePassword(UUID id,UserPasswordUpdateDTO d){if(d==null||blank(d.newPassword()))throw new InvalidRequestException("A nova senha é obrigatória.");User u=find(id);mapper.updatePassword(u,d);return mapper.toResponse(repo.save(u));}
  public void delete(UUID id){find(id);if(equipment.existsByCreatedById(id)||maintenance.existsByRegisteredById(id))throw new InvalidRequestException("Usuário possui equipamentos ou manutenções relacionados.");repo.deleteById(id);}
  private User find(UUID id){return repo.findById(id).orElseThrow(()->new ResourceNotFoundException("Usuário não encontrado: "+id));}
- private void validate(UserRequestDTO d){if(d==null||blank(d.name())||blank(d.email())||blank(d.password())||d.role()==null)throw new InvalidRequestException("Nome, email, senha e papel são obrigatórios.");}
+ private void validate(UserRequestDTO d){if(d==null||blank(d.name())||blank(d.email())||blank(d.password()))throw new InvalidRequestException("Nome, email e senha são obrigatórios.");}
+ private void validateUpdate(UserUpdateRequestDTO d){if(d==null||blank(d.name())||blank(d.email()))throw new InvalidRequestException("Nome e email são obrigatórios.");}
  private boolean blank(String s){return s==null||s.isBlank();}
 }
