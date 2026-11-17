@@ -43,5 +43,6 @@ public class User extends br.com.rodrigosantana.maqflow.entity.BaseEntity {
     public List<Equipment> getEquipmentCreated() { return equipmentCreated; }
     public List<Maintenance> getMaintenancesRegistered() { return maintenancesRegistered; }
     public void setPassword(String password) { this.password = password; }
+    public boolean passwordMatches(String candidate) { return password != null && password.equals(candidate); }
     @Override public String toString() { return "User{id=" + id + ", name='" + name + "', email='" + email + "'}"; }
 }
