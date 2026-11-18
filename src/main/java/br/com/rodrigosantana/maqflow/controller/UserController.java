@@ -4,6 +4,7 @@ import br.com.rodrigosantana.maqflow.dto.user.*;
 import br.com.rodrigosantana.maqflow.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -33,11 +34,13 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@userAccessPolicy.canManage(#id, authentication)")
     public UserResponseDTO update(@PathVariable UUID id, @Valid @RequestBody UserUpdateRequestDTO d) {
         return service.update(id, d);
     }
 
     @PutMapping("/{id}/password")
+    @PreAuthorize("@userAccessPolicy.canManage(#id, authentication)")
     public UserResponseDTO updatePassword(@PathVariable UUID id, @Valid @RequestBody UserPasswordUpdateDTO d) {
         return service.updatePassword(id, d);
     }

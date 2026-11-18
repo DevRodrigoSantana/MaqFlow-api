@@ -17,6 +17,11 @@ import java.util.TreeMap;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler({AuthenticationFailedException.class, InvalidRefreshTokenException.class, RefreshTokenReuseException.class})
+    public ResponseEntity<ApiErrorResponse> authentication(RuntimeException e, HttpServletRequest request) {
+        return response(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", e.getMessage(), request, Map.of());
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> notFound(ResourceNotFoundException e, HttpServletRequest request) {
         return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", e.getMessage(), request, e.getFieldErrors());

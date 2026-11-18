@@ -14,6 +14,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,12 +42,35 @@ class CrudApiIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired EquipmentRepository equipment;
     @Autowired MaintenanceRepository maintenances;
+    private String accessToken;
+
+    @BeforeEach
+    void authenticateRequests() throws Exception {
+        String email = "crud-auth-" + UUID.randomUUID() + "@example.test";
+        mvc.perform(post(USERS).contentType(MediaType.APPLICATION_JSON)
+                        .content(userBody(email)))
+                .andExpect(status().isCreated());
+        User authenticatedUser = users.findByEmail(email).orElseThrow();
+        authenticatedUser.setRole(Role.ADMIN);
+        users.saveAndFlush(authenticatedUser);
+        MvcResult login = mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"TestPass1!\"}"))
+                .andExpect(status().isOk()).andReturn();
+        Matcher matcher = Pattern.compile("\\\"accessToken\\\":\\\"([^\\\"]+)\\\"")
+                .matcher(login.getResponse().getContentAsString());
+        assertTrue(matcher.find(), "Login should return an access token.");
+        accessToken = matcher.group(1);
+    }
+
+    private ResultActions perform(MockHttpServletRequestBuilder request) throws Exception {
+        return mvc.perform(request.header("Authorization", "Bearer " + accessToken));
+    }
 
     @Test
     void invalidDtoRequestsReturnStructuredFieldErrorsWithoutCallingPersistence() throws Exception {
         long usersBefore = users.count();
         String invalidUser = "{\"name\":\"A\",\"email\":\"invalid\",\"password\":\"weak\"}";
-        mvc.perform(post(USERS).contentType(MediaType.APPLICATION_JSON).content(invalidUser))
+        perform(post(USERS).contentType(MediaType.APPLICATION_JSON).content(invalidUser))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.status").value(400)).andExpect(jsonPath("$.error").exists())
                 .andExpect(jsonPath("$.path").value(USERS)).andExpect(jsonPath("$.fieldErrors.name").exists())
@@ -52,11 +78,11 @@ class CrudApiIntegrationTest {
         assertEquals(usersBefore, users.count());
 
         String invalidEquipment = "{\"name\":\"Torno CNC\",\"description\":\"ok\",\"serialNumber\":\"SER@1\",\"status\":\"ACTIVE\",\"createdById\":\"" + MISSING_ID + "\"}";
-        mvc.perform(post(EQUIPMENT).contentType(MediaType.APPLICATION_JSON).content(invalidEquipment))
+        perform(post(EQUIPMENT).contentType(MediaType.APPLICATION_JSON).content(invalidEquipment))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.serialNumber").exists());
 
         String invalidMaintenance = "{\"description\":\"Revisão\",\"type\":\"UNKNOWN\",\"status\":\"OPEN\",\"equipmentId\":\"" + MISSING_ID + "\",\"registeredById\":\"" + MISSING_ID + "\"}";
-        mvc.perform(post(MAINTENANCES).contentType(MediaType.APPLICATION_JSON).content(invalidMaintenance))
+        perform(post(MAINTENANCES).contentType(MediaType.APPLICATION_JSON).content(invalidMaintenance))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.status").value(400)).andExpect(jsonPath("$.error").exists())
                 .andExpect(jsonPath("$.path").value(MAINTENANCES));
@@ -73,36 +99,40 @@ class CrudApiIntegrationTest {
         stored.setRole(Role.ADMIN);
         users.saveAndFlush(stored);
 
-        mvc.perform(get(USERS)).andExpect(status().isOk()).andExpect(jsonPath("$[0].email").value("user-one@example.test"));
-        mvc.perform(get(USERS + "/" + id)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id)).andExpect(jsonPath("$.password").doesNotExist());
-        mvc.perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", "wrong-password")))
+        perform(get(USERS)).andExpect(status().isOk()).andExpect(jsonPath("$[*].email").value(org.hamcrest.Matchers.hasItem("user-one@example.test")));
+        perform(get(USERS + "/" + id)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id)).andExpect(jsonPath("$.password").doesNotExist());
+        perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", "wrong-password")))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.currentPassword").exists());
         assertTrue(users.existsByEmail("user-one@example.test"));
-        mvc.perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", null)))
+        perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", null)))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.currentPassword").exists());
-        mvc.perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", "TestPass1!")))
+        perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", "TestPass1!")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.email").value("user-one-updated@example.test"));
         assertTrue(users.existsByEmail("user-one-updated@example.test"));
         assertEquals(Role.ADMIN, users.findById(UUID.fromString(id)).orElseThrow().getRole());
 
-        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"wrong-password\",\"newPassword\":\"NewPass1!\"}"))
+        perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"wrong-password\",\"newPassword\":\"NewPass1!\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andExpect(jsonPath("$.fieldErrors.currentPassword").exists());
         users.flush();
-        assertEquals("TestPass1!", jdbc.queryForObject("select password from users where id = ?", String.class, UUID.fromString(id)));
-        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"newPassword\":\"Another1!\"}"))
+        String oldHash = jdbc.queryForObject("select password from users where id = ?", String.class, UUID.fromString(id));
+        assertNotEquals("TestPass1!", oldHash);
+        assertTrue(oldHash.startsWith("$2"));
+        perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"newPassword\":\"Another1!\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.currentPassword").exists());
-        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"TestPass1!\",\"newPassword\":\"NewPass1!\"}"))
+        perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"TestPass1!\",\"newPassword\":\"NewPass1!\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.password").doesNotExist());
         users.flush();
-        assertEquals("NewPass1!", jdbc.queryForObject("select password from users where id = ?", String.class, UUID.fromString(id)));
-        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"NewPass1!\",\"newPassword\":\" \"}"))
+        String newHash = jdbc.queryForObject("select password from users where id = ?", String.class, UUID.fromString(id));
+        assertNotEquals("NewPass1!", newHash);
+        assertTrue(newHash.startsWith("$2"));
+        perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"NewPass1!\",\"newPassword\":\" \"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.newPassword").exists());
-        mvc.perform(post(USERS).contentType(MediaType.APPLICATION_JSON).content(userBody("user-one-updated@example.test")))
+        perform(post(USERS).contentType(MediaType.APPLICATION_JSON).content(userBody("user-one-updated@example.test")))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"))
                 .andExpect(jsonPath("$.fieldErrors.email").exists()).andExpect(jsonPath("$.path").value(USERS));
-        mvc.perform(get(USERS + "/" + MISSING_ID)).andExpect(status().isNotFound());
-        mvc.perform(delete(USERS + "/" + id)).andExpect(status().isNoContent());
+        perform(get(USERS + "/" + MISSING_ID)).andExpect(status().isNotFound());
+        perform(delete(USERS + "/" + id)).andExpect(status().isNoContent());
         assertFalse(users.existsById(UUID.fromString(id)));
     }
 
@@ -110,7 +140,7 @@ class CrudApiIntegrationTest {
     void userDeleteIsBlockedWhenEquipmentDependsOnIt() throws Exception {
         String userId = createResource(USERS, userBody("user-equipment@example.test"), 201);
         createResource(EQUIPMENT, equipmentBody("SER-USER-DEPENDENCY", userId), 201);
-        mvc.perform(delete(USERS + "/" + userId)).andExpect(status().isBadRequest());
+        perform(delete(USERS + "/" + userId)).andExpect(status().isBadRequest());
         assertTrue(users.existsById(UUID.fromString(userId)));
     }
 
@@ -121,21 +151,21 @@ class CrudApiIntegrationTest {
         assertTrue(lastBody.contains("\"createdById\":\"" + userId + "\""));
         Equipment persisted = equipment.findById(UUID.fromString(id)).orElseThrow();
         assertEquals(UUID.fromString(userId), persisted.getCreatedBy().getId());
-        mvc.perform(get(EQUIPMENT)).andExpect(status().isOk()).andExpect(jsonPath("$[0].serialNumber").value("SER-CRUD-001"));
-        mvc.perform(get(EQUIPMENT + "/" + id)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id));
-        mvc.perform(put(EQUIPMENT + "/" + id).contentType(MediaType.APPLICATION_JSON).content(equipmentUpdateBody("SER-CRUD-001", "Torno atualizado")))
+        perform(get(EQUIPMENT)).andExpect(status().isOk()).andExpect(jsonPath("$[0].serialNumber").value("SER-CRUD-001"));
+        perform(get(EQUIPMENT + "/" + id)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id));
+        perform(put(EQUIPMENT + "/" + id).contentType(MediaType.APPLICATION_JSON).content(equipmentUpdateBody("SER-CRUD-001", "Torno atualizado")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Torno atualizado"));
         Equipment updated = equipment.findById(UUID.fromString(id)).orElseThrow();
         assertEquals("Torno atualizado", updated.getName());
         assertEquals(UUID.fromString(userId), updated.getCreatedBy().getId());
-        mvc.perform(post(EQUIPMENT).contentType(MediaType.APPLICATION_JSON).content(equipmentBody("SER-CRUD-001", userId))).andExpect(status().isConflict());
+        perform(post(EQUIPMENT).contentType(MediaType.APPLICATION_JSON).content(equipmentBody("SER-CRUD-001", userId))).andExpect(status().isConflict());
         String secondId = createResource(EQUIPMENT, equipmentBody("SER-CRUD-002", userId), 201);
-        mvc.perform(put(EQUIPMENT + "/" + secondId).contentType(MediaType.APPLICATION_JSON).content(equipmentUpdateBody("SER-CRUD-001", "Outro torno")))
+        perform(put(EQUIPMENT + "/" + secondId).contentType(MediaType.APPLICATION_JSON).content(equipmentUpdateBody("SER-CRUD-001", "Outro torno")))
                 .andExpect(status().isConflict());
         assertEquals("SER-CRUD-002", equipment.findById(UUID.fromString(secondId)).orElseThrow().getSerialNumber());
-        mvc.perform(post(EQUIPMENT).contentType(MediaType.APPLICATION_JSON).content(equipmentBody("SER-BAD-USER", MISSING_ID.toString()))).andExpect(status().isNotFound());
-        mvc.perform(get(EQUIPMENT + "/" + MISSING_ID)).andExpect(status().isNotFound());
-        mvc.perform(delete(EQUIPMENT + "/" + id)).andExpect(status().isNoContent());
+        perform(post(EQUIPMENT).contentType(MediaType.APPLICATION_JSON).content(equipmentBody("SER-BAD-USER", MISSING_ID.toString()))).andExpect(status().isNotFound());
+        perform(get(EQUIPMENT + "/" + MISSING_ID)).andExpect(status().isNotFound());
+        perform(delete(EQUIPMENT + "/" + id)).andExpect(status().isNoContent());
         assertFalse(equipment.existsById(UUID.fromString(id)));
     }
 
@@ -144,7 +174,7 @@ class CrudApiIntegrationTest {
         String userId = createResource(USERS, userBody("equipment-maint-owner@example.test"), 201);
         String equipmentId = createResource(EQUIPMENT, equipmentBody("SER-MAINT-DEPENDENCY", userId), 201);
         createResource(MAINTENANCES, maintenanceBody(equipmentId, userId), 201);
-        mvc.perform(delete(EQUIPMENT + "/" + equipmentId)).andExpect(status().isBadRequest());
+        perform(delete(EQUIPMENT + "/" + equipmentId)).andExpect(status().isBadRequest());
         assertTrue(equipment.existsById(UUID.fromString(equipmentId)));
     }
 
@@ -158,23 +188,23 @@ class CrudApiIntegrationTest {
         Maintenance persisted = maintenances.findById(UUID.fromString(id)).orElseThrow();
         assertEquals(UUID.fromString(equipmentId), persisted.getEquipment().getId());
         assertEquals(UUID.fromString(userId), persisted.getRegisteredBy().getId());
-        mvc.perform(get(MAINTENANCES)).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id));
-        mvc.perform(get(MAINTENANCES + "/" + id)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id));
-        mvc.perform(put(MAINTENANCES + "/" + id).contentType(MediaType.APPLICATION_JSON).content(maintenanceUpdateBody("Inspeção atualizada")))
+        perform(get(MAINTENANCES)).andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(id));
+        perform(get(MAINTENANCES + "/" + id)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id));
+        perform(put(MAINTENANCES + "/" + id).contentType(MediaType.APPLICATION_JSON).content(maintenanceUpdateBody("Inspeção atualizada")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.description").value("Inspeção atualizada"));
         Maintenance updated = maintenances.findById(UUID.fromString(id)).orElseThrow();
         assertEquals("Inspeção atualizada", updated.getDescription());
         assertEquals(UUID.fromString(equipmentId), updated.getEquipment().getId());
         assertEquals(UUID.fromString(userId), updated.getRegisteredBy().getId());
-        mvc.perform(post(MAINTENANCES).contentType(MediaType.APPLICATION_JSON).content(maintenanceBody(MISSING_ID.toString(), userId))).andExpect(status().isNotFound());
-        mvc.perform(post(MAINTENANCES).contentType(MediaType.APPLICATION_JSON).content(maintenanceBody(equipmentId, MISSING_ID.toString()))).andExpect(status().isNotFound());
-        mvc.perform(get(MAINTENANCES + "/" + MISSING_ID)).andExpect(status().isNotFound());
-        mvc.perform(delete(MAINTENANCES + "/" + id)).andExpect(status().isNoContent());
+        perform(post(MAINTENANCES).contentType(MediaType.APPLICATION_JSON).content(maintenanceBody(MISSING_ID.toString(), userId))).andExpect(status().isNotFound());
+        perform(post(MAINTENANCES).contentType(MediaType.APPLICATION_JSON).content(maintenanceBody(equipmentId, MISSING_ID.toString()))).andExpect(status().isNotFound());
+        perform(get(MAINTENANCES + "/" + MISSING_ID)).andExpect(status().isNotFound());
+        perform(delete(MAINTENANCES + "/" + id)).andExpect(status().isNoContent());
         assertFalse(maintenances.existsById(UUID.fromString(id)));
     }
 
     private String createResource(String url, String body, int expectedStatus) throws Exception {
-        MvcResult result = mvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body))
+        MvcResult result = perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().is(expectedStatus)).andReturn();
         lastBody = result.getResponse().getContentAsString();
         Matcher matcher = Pattern.compile("\\\"id\\\":\\\"([^\\\"]+)\\\"").matcher(lastBody);
