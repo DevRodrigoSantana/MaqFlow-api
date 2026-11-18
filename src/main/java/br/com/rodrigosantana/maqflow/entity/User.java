@@ -43,6 +43,9 @@ public class User extends br.com.rodrigosantana.maqflow.entity.BaseEntity {
     public List<Equipment> getEquipmentCreated() { return equipmentCreated; }
     public List<Maintenance> getMaintenancesRegistered() { return maintenancesRegistered; }
     public void setPassword(String password) { this.password = password; }
-    public boolean passwordMatches(String candidate) { return password != null && password.equals(candidate); }
+    public String getPasswordHash() { return password; }
+    public boolean passwordMatches(String candidate, org.springframework.security.crypto.password.PasswordEncoder encoder) {
+        return password != null && encoder.matches(candidate, password);
+    }
     @Override public String toString() { return "User{id=" + id + ", name='" + name + "', email='" + email + "'}"; }
 }
