@@ -2,6 +2,7 @@ package br.com.rodrigosantana.maqflow.controller;
 
 import br.com.rodrigosantana.maqflow.dto.user.*;
 import br.com.rodrigosantana.maqflow.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +18,7 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<UserResponseDTO> create(@RequestBody UserRequestDTO d) {
+    public ResponseEntity<UserResponseDTO> create(@Valid @RequestBody UserRequestDTO d) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(d));
     }
 
@@ -32,12 +33,12 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public UserResponseDTO update(@PathVariable UUID id, @RequestBody UserUpdateRequestDTO d) {
+    public UserResponseDTO update(@PathVariable UUID id, @Valid @RequestBody UserUpdateRequestDTO d) {
         return service.update(id, d);
     }
 
     @PutMapping("/{id}/password")
-    public UserResponseDTO updatePassword(@PathVariable UUID id, @RequestBody UserPasswordUpdateDTO d) {
+    public UserResponseDTO updatePassword(@PathVariable UUID id, @Valid @RequestBody UserPasswordUpdateDTO d) {
         return service.updatePassword(id, d);
     }
 

@@ -2,6 +2,7 @@ package br.com.rodrigosantana.maqflow.controller;
 
 import br.com.rodrigosantana.maqflow.dto.equipment.*;
 import br.com.rodrigosantana.maqflow.service.EquipmentService;
+import jakarta.validation.Valid;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +18,7 @@ public class EquipmentController {
     }
 
     @PostMapping
-    public ResponseEntity<EquipmentResponseDTO> create(@RequestBody EquipmentRequestDTO d) {
+    public ResponseEntity<EquipmentResponseDTO> create(@Valid @RequestBody EquipmentRequestDTO d) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(d));
     }
 
@@ -32,7 +33,7 @@ public class EquipmentController {
     }
 
     @PutMapping("/{id}")
-    public EquipmentResponseDTO update(@PathVariable UUID id, @RequestBody EquipmentUpdateRequestDTO d) {
+    public EquipmentResponseDTO update(@PathVariable UUID id, @Valid @RequestBody EquipmentUpdateRequestDTO d) {
         return service.update(id, d);
     }
 

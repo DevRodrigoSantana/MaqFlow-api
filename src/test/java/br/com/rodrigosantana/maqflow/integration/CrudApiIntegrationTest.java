@@ -40,6 +40,27 @@ class CrudApiIntegrationTest {
     @Autowired EquipmentRepository equipment;
     @Autowired MaintenanceRepository maintenances;
 
+    @Test
+    void invalidDtoRequestsReturnStructuredFieldErrorsWithoutCallingPersistence() throws Exception {
+        long usersBefore = users.count();
+        String invalidUser = "{\"name\":\"A\",\"email\":\"invalid\",\"password\":\"weak\"}";
+        mvc.perform(post(USERS).contentType(MediaType.APPLICATION_JSON).content(invalidUser))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400)).andExpect(jsonPath("$.error").exists())
+                .andExpect(jsonPath("$.path").value(USERS)).andExpect(jsonPath("$.fieldErrors.name").exists())
+                .andExpect(jsonPath("$.fieldErrors.email").exists()).andExpect(jsonPath("$.fieldErrors.password").exists());
+        assertEquals(usersBefore, users.count());
+
+        String invalidEquipment = "{\"name\":\"Torno CNC\",\"description\":\"ok\",\"serialNumber\":\"SER@1\",\"status\":\"ACTIVE\",\"createdById\":\"" + MISSING_ID + "\"}";
+        mvc.perform(post(EQUIPMENT).contentType(MediaType.APPLICATION_JSON).content(invalidEquipment))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.serialNumber").exists());
+
+        String invalidMaintenance = "{\"description\":\"Revisão\",\"type\":\"UNKNOWN\",\"status\":\"OPEN\",\"equipmentId\":\"" + MISSING_ID + "\",\"registeredById\":\"" + MISSING_ID + "\"}";
+        mvc.perform(post(MAINTENANCES).contentType(MediaType.APPLICATION_JSON).content(invalidMaintenance))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(400)).andExpect(jsonPath("$.error").exists())
+                .andExpect(jsonPath("$.path").value(MAINTENANCES));
+    }
     private String lastBody;
 
     @Test
@@ -54,27 +75,32 @@ class CrudApiIntegrationTest {
 
         mvc.perform(get(USERS)).andExpect(status().isOk()).andExpect(jsonPath("$[0].email").value("user-one@example.test"));
         mvc.perform(get(USERS + "/" + id)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(id)).andExpect(jsonPath("$.password").doesNotExist());
-        mvc.perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test")))
+        mvc.perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", "wrong-password")))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.currentPassword").exists());
+        assertTrue(users.existsByEmail("user-one@example.test"));
+        mvc.perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", null)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.currentPassword").exists());
+        mvc.perform(put(USERS + "/" + id).contentType(MediaType.APPLICATION_JSON).content(userUpdateBody("user-one-updated@example.test", "TestPass1!")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.email").value("user-one-updated@example.test"));
         assertTrue(users.existsByEmail("user-one-updated@example.test"));
         assertEquals(Role.ADMIN, users.findById(UUID.fromString(id)).orElseThrow().getRole());
 
-        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"wrong-password\",\"newPassword\":\"new-test-password\"}"))
+        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"wrong-password\",\"newPassword\":\"NewPass1!\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andExpect(jsonPath("$.fieldErrors.currentPassword").exists());
         users.flush();
-        assertEquals("test-password", jdbc.queryForObject("select password from users where id = ?", String.class, UUID.fromString(id)));
-        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"newPassword\":\"another-password\"}"))
+        assertEquals("TestPass1!", jdbc.queryForObject("select password from users where id = ?", String.class, UUID.fromString(id)));
+        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"newPassword\":\"Another1!\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.currentPassword").exists());
-        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"test-password\",\"newPassword\":\"new-test-password\"}"))
+        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"TestPass1!\",\"newPassword\":\"NewPass1!\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.password").doesNotExist());
         users.flush();
-        assertEquals("new-test-password", jdbc.queryForObject("select password from users where id = ?", String.class, UUID.fromString(id)));
-        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"new-test-password\",\"newPassword\":\" \"}"))
+        assertEquals("NewPass1!", jdbc.queryForObject("select password from users where id = ?", String.class, UUID.fromString(id)));
+        mvc.perform(put(USERS + "/" + id + "/password").contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"NewPass1!\",\"newPassword\":\" \"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.newPassword").exists());
         mvc.perform(post(USERS).contentType(MediaType.APPLICATION_JSON).content(userBody("user-one-updated@example.test")))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"))
-                .andExpect(jsonPath("$.fieldErrors.email").exists()).andExpect(jsonPath("$.instance").value(USERS));
+                .andExpect(jsonPath("$.fieldErrors.email").exists()).andExpect(jsonPath("$.path").value(USERS));
         mvc.perform(get(USERS + "/" + MISSING_ID)).andExpect(status().isNotFound());
         mvc.perform(delete(USERS + "/" + id)).andExpect(status().isNoContent());
         assertFalse(users.existsById(UUID.fromString(id)));
@@ -157,11 +183,12 @@ class CrudApiIntegrationTest {
     }
 
     private String userBody(String email) {
-        return "{\"name\":\"Test User\",\"email\":\"" + email + "\",\"password\":\"test-password\"}";
+        return "{\"name\":\"Test User\",\"email\":\"" + email + "\",\"password\":\"TestPass1!\"}";
     }
 
-    private String userUpdateBody(String email) {
-        return "{\"name\":\"Updated User\",\"email\":\"" + email + "\"}";
+    private String userUpdateBody(String email, String currentPassword) {
+        String passwordField = currentPassword == null ? "" : ",\"currentPassword\":\"" + currentPassword + "\"";
+        return "{\"name\":\"Updated User\",\"email\":\"" + email + "\"" + passwordField + "}";
     }
 
     private String equipmentBody(String serialNumber, String userId) {

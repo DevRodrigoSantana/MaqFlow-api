@@ -1,6 +1,7 @@
 package br.com.rodrigosantana.maqflow.service;
 
 import br.com.rodrigosantana.maqflow.dto.user.UserPasswordUpdateDTO;
+import br.com.rodrigosantana.maqflow.dto.user.UserUpdateRequestDTO;
 import br.com.rodrigosantana.maqflow.entity.User;
 import br.com.rodrigosantana.maqflow.exception.InvalidRequestException;
 import br.com.rodrigosantana.maqflow.repository.EquipmentRepository;
@@ -65,6 +66,33 @@ class UserPasswordUpdateServiceTest {
         assertThrows(InvalidRequestException.class,
                 () -> service.updatePassword(userId, new UserPasswordUpdateDTO("original-password", " ")));
         assertTrue(user.passwordMatches("original-password"));
+        assertEquals(0, saveCalls.get());
+    }
+
+    @Test
+    void allowsProfileUpdateWhenCurrentPasswordMatches() {
+        service.update(userId, new UserUpdateRequestDTO("Updated Name", "updated@example.test", "original-password"));
+
+        assertEquals("Updated Name", user.getName());
+        assertEquals(1, saveCalls.get());
+    }
+
+    @Test
+    void rejectsProfileUpdateWhenCurrentPasswordIsWrongWithoutSaving() {
+        assertThrows(InvalidRequestException.class,
+                () -> service.update(userId, new UserUpdateRequestDTO("Updated Name", "updated@example.test", "wrong-password")));
+
+        assertNull(user.getName());
+        assertTrue(user.passwordMatches("original-password"));
+        assertEquals(0, saveCalls.get());
+    }
+
+    @Test
+    void rejectsProfileUpdateWhenCurrentPasswordIsMissing() {
+        assertThrows(InvalidRequestException.class,
+                () -> service.update(userId, new UserUpdateRequestDTO("Updated Name", "updated@example.test", " ")));
+
+        assertNull(user.getName());
         assertEquals(0, saveCalls.get());
     }
 
