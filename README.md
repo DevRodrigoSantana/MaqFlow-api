@@ -89,14 +89,14 @@ maintenance-api/
 
 - [x] Configuração inicial do projeto Spring Boot.
 - [x] Configuração da conexão com MySQL.
-- [ ] Modelagem das entidades e relacionamentos.
-- [ ] Implementação das entidades JPA.
-- [ ] Implementação do CRUD de usuários.
-- [ ] Implementação do CRUD de equipamentos.
-- [ ] Implementação do módulo de manutenções.
+- [x] Modelagem das entidades e relacionamentos.
+- [x] Implementação das entidades JPA.
+- [x] Implementação do CRUD de usuários.
+- [x] Implementação do CRUD de equipamentos.
+- [x] Implementação do módulo de manutenções.
 - [ ] Implementação da autenticação e autorização com Spring Security.
 - [ ] Implementação da auditoria.
-- [ ] Criação de testes automatizados.
+- [x] Criação de testes automatizados.
 - [ ] Documentação da API com Swagger/OpenAPI.
 
 ## Status do projeto

@@ -1,0 +1,19 @@
+package br.com.rodrigosantana.maqflow.service;
+import br.com.rodrigosantana.maqflow.dto.equipment.*;import br.com.rodrigosantana.maqflow.entity.*;import br.com.rodrigosantana.maqflow.exception.*;import br.com.rodrigosantana.maqflow.mapper.EquipmentMapper;import br.com.rodrigosantana.maqflow.repository.*;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;import java.util.*;
+@Service @Transactional
+public class EquipmentService {
+ private final EquipmentRepository repo;private final UserRepository users;private final MaintenanceRepository maint;private final EquipmentMapper mapper=new EquipmentMapper();
+ public EquipmentService(EquipmentRepository r,UserRepository u,MaintenanceRepository m){repo=r;users=u;maint=m;}
+ public EquipmentResponseDTO create(EquipmentRequestDTO d){validate(d);ensureSerialNumberAvailable(d.serialNumber());return mapper.toResponse(repo.save(mapper.toEntity(d,findUser(d.createdById()))));}
+ @Transactional(readOnly=true) public EquipmentResponseDTO get(UUID id){return mapper.toResponse(find(id));}
+ @Transactional(readOnly=true) public List<EquipmentResponseDTO> list(){return repo.findAll().stream().map(mapper::toResponse).toList();}
+ public EquipmentResponseDTO update(UUID id,EquipmentUpdateRequestDTO d){validate(d);Equipment e=find(id);if(repo.existsBySerialNumberAndIdNot(d.serialNumber(),id))throw duplicateSerialNumber();mapper.update(e,d);return mapper.toResponse(repo.save(e));}
+ public void delete(UUID id){find(id);if(maint.existsByEquipmentId(id))throw new InvalidRequestException("Equipamento possui manutenções relacionadas.");repo.deleteById(id);}
+ private Equipment find(UUID id){return repo.findById(id).orElseThrow(()->new ResourceNotFoundException("Equipamento não encontrado: "+id,Map.of("id","Nenhum equipamento corresponde ao UUID informado.")));}
+ private void ensureSerialNumberAvailable(String serialNumber){if(repo.existsBySerialNumber(serialNumber))throw duplicateSerialNumber();}
+ private DuplicateSerialNumberException duplicateSerialNumber(){return new DuplicateSerialNumberException("Já existe um equipamento cadastrado com este número de série");}
+ private User findUser(UUID id){if(id==null)throw new InvalidRequestException("Usuário responsável é obrigatório.",Map.of("createdById","Informe o UUID do usuário que cadastrou o equipamento."));return users.findById(id).orElseThrow(()->new ResourceNotFoundException("Usuário responsável não encontrado: "+id,Map.of("createdById","Nenhum usuário corresponde ao UUID informado.")));}
+ private void validate(EquipmentRequestDTO d){if(d==null)throw new InvalidRequestException("O corpo da requisição é obrigatório.",Map.of("body","Informe os dados do equipamento."));Map<String,String> errors=new LinkedHashMap<>();if(blank(d.name()))errors.put("name","Nome é obrigatório.");if(blank(d.serialNumber()))errors.put("serialNumber","Número de série é obrigatório.");if(d.status()==null)errors.put("status","Status é obrigatório.");if(d.createdById()==null)errors.put("createdById","Usuário responsável é obrigatório.");if(!errors.isEmpty())throw new InvalidRequestException("Há campos obrigatórios inválidos.",errors);}
+ private void validate(EquipmentUpdateRequestDTO d){if(d==null)throw new InvalidRequestException("O corpo da requisição é obrigatório.",Map.of("body","Informe os dados do equipamento."));Map<String,String> errors=new LinkedHashMap<>();if(blank(d.name()))errors.put("name","Nome é obrigatório.");if(blank(d.serialNumber()))errors.put("serialNumber","Número de série é obrigatório.");if(d.status()==null)errors.put("status","Status é obrigatório.");if(!errors.isEmpty())throw new InvalidRequestException("Há campos obrigatórios inválidos.",errors);}
+ private boolean blank(String s){return s==null||s.isBlank();}
+}
