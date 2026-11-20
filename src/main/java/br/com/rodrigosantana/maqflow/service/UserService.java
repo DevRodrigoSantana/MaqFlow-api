@@ -37,10 +37,14 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserResponseDTO get(UUID id) { return mapper.toResponse(find(id)); }
+    public UserResponseDTO get(UUID id) {
+        return mapper.toResponse(find(id));
+    }
 
     @Transactional(readOnly = true)
-    public List<UserResponseDTO> list() { return repo.findAll().stream().map(mapper::toResponse).toList(); }
+    public List<UserResponseDTO> list() {
+        return repo.findAll().stream().map(mapper::toResponse).toList();
+    }
 
     public UserResponseDTO update(UUID id, UserUpdateRequestDTO dto) {
         validateUpdate(dto);
@@ -77,7 +81,8 @@ public class UserService {
     }
 
     private void validate(UserRequestDTO dto) {
-        if (dto == null) throw new InvalidRequestException("O corpo da requisição é obrigatório.", Map.of("body", "Informe os dados do usuário."));
+        if (dto == null)
+            throw new InvalidRequestException("O corpo da requisição é obrigatório.", Map.of("body", "Informe os dados do usuário."));
         Map<String, String> errors = new LinkedHashMap<>();
         if (blank(dto.name())) errors.put("name", "Nome é obrigatório.");
         if (blank(dto.email())) errors.put("email", "Email é obrigatório.");
@@ -86,21 +91,26 @@ public class UserService {
     }
 
     private void validateUpdate(UserUpdateRequestDTO dto) {
-        if (dto == null) throw new InvalidRequestException("O corpo da requisição é obrigatório.", Map.of("body", "Informe os dados do usuário."));
+        if (dto == null)
+            throw new InvalidRequestException("O corpo da requisição é obrigatório.", Map.of("body", "Informe os dados do usuário."));
         Map<String, String> errors = new LinkedHashMap<>();
         if (blank(dto.name())) errors.put("name", "Nome é obrigatório.");
         if (blank(dto.email())) errors.put("email", "Email é obrigatório.");
         if (blank(dto.currentPassword())) errors.put("currentPassword", "Senha atual é obrigatória.");
-        if (!errors.isEmpty()) throw new InvalidRequestException("Nome, e-mail e senha atual são obrigatórios.", errors);
+        if (!errors.isEmpty())
+            throw new InvalidRequestException("Nome, e-mail e senha atual são obrigatórios.", errors);
     }
 
     private void validatePasswordUpdate(UserPasswordUpdateDTO dto) {
-        if (dto == null) throw new InvalidRequestException("O corpo da requisição é obrigatório.", Map.of("body", "Informe as senhas para alteração."));
+        if (dto == null)
+            throw new InvalidRequestException("O corpo da requisição é obrigatório.", Map.of("body", "Informe as senhas para alteração."));
         Map<String, String> errors = new LinkedHashMap<>();
         if (blank(dto.currentPassword())) errors.put("currentPassword", "Informe a senha atual.");
         if (blank(dto.newPassword())) errors.put("newPassword", "Informe a nova senha.");
         if (!errors.isEmpty()) throw new InvalidRequestException("Senha atual e nova senha são obrigatórias.", errors);
     }
 
-    private boolean blank(String value) { return value == null || value.isBlank(); }
+    private boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
 }

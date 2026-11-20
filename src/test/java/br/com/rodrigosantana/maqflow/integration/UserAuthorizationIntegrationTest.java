@@ -118,29 +118,42 @@ class UserAuthorizationIntegrationTest {
     }
 
     @Test
-    void userCanUseEquipmentAndMaintenanceEndpoints() throws Exception {
+    void userCanReadEquipmentButOnlyManageMaintenance() throws Exception {
         String email = "user-resources-" + UUID.randomUUID() + "@example.test";
         UUID userId = register(email);
         String access = login(email, "ValidPass1!");
 
+        String adminEmail = "equipment-admin-" + UUID.randomUUID() + "@example.test";
+        UUID adminId = register(adminEmail);
+        User admin = users.findById(adminId).orElseThrow();
+        admin.setRole(Role.ADMIN);
+        users.saveAndFlush(admin);
+        String adminAccess = login(adminEmail, "ValidPass1!");
+
         String serial = "AUTH-" + UUID.randomUUID();
         MvcResult equipmentCreated = mvc.perform(post("/api/v1/equipment")
-                        .header("Authorization", bearer(access))
+                        .header("Authorization", bearer(adminAccess))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Torno de teste\",\"description\":\"Teste de autorização\","
                                 + "\"serialNumber\":\"" + serial + "\",\"status\":\"ACTIVE\","
-                                + "\"createdById\":\"" + userId + "\"}"))
+                                + "\"createdById\":\"" + adminId + "\"}"))
                 .andExpect(status().isCreated()).andReturn();
         UUID equipmentId = responseId(equipmentCreated);
         mvc.perform(get("/api/v1/equipment").header("Authorization", bearer(access)))
                 .andExpect(status().isOk()).andExpect(content().string(containsString(serial)));
         mvc.perform(get("/api/v1/equipment/" + equipmentId).header("Authorization", bearer(access)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(equipmentId.toString()));
+        mvc.perform(post("/api/v1/equipment").header("Authorization", bearer(access))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Torno proibido\",\"description\":\"Teste\","
+                                + "\"serialNumber\":\"DENY-" + UUID.randomUUID()
+                                + "\",\"status\":\"ACTIVE\",\"createdById\":\"" + userId + "\"}"))
+                .andExpect(status().isForbidden());
         mvc.perform(put("/api/v1/equipment/" + equipmentId)
                         .header("Authorization", bearer(access)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Torno atualizado\",\"description\":\"Atualizado\","
                                 + "\"serialNumber\":\"" + serial + "\",\"status\":\"INACTIVE\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Torno atualizado"));
+                .andExpect(status().isForbidden());
 
         MvcResult maintenanceCreated = mvc.perform(post("/api/v1/maintenances")
                         .header("Authorization", bearer(access))
@@ -162,7 +175,7 @@ class UserAuthorizationIntegrationTest {
         mvc.perform(delete("/api/v1/maintenances/" + maintenanceId).header("Authorization", bearer(access)))
                 .andExpect(status().isNoContent());
         mvc.perform(delete("/api/v1/equipment/" + equipmentId).header("Authorization", bearer(access)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isForbidden());
     }
 
     private UUID register(String email) throws Exception {
