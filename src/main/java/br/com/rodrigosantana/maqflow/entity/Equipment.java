@@ -2,6 +2,7 @@ package br.com.rodrigosantana.maqflow.entity;
 
 import br.com.rodrigosantana.maqflow.enums.EquipmentStatus;
 import jakarta.persistence.*;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -29,17 +30,54 @@ public class Equipment extends BaseEntity {
     @OneToMany(mappedBy = "equipment")
     private List<Maintenance> maintenances = new ArrayList<>();
 
-    public Equipment() {}
-    public UUID getId() { return id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public String getSerialNumber() { return serialNumber; }
-    public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
-    public EquipmentStatus getStatus() { return status; }
-    public void setStatus(EquipmentStatus status) { this.status = status; }
-    public User getCreatedBy() { return createdBy; }
-    public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
-    public List<Maintenance> getMaintenances() { return maintenances; }
+    public Equipment() {
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getSerialNumber() {
+        return serialNumber;
+    }
+
+    public void setSerialNumber(String serialNumber) {
+        this.serialNumber = serialNumber;
+    }
+
+    public EquipmentStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(EquipmentStatus status) {
+        this.status = status;
+    }
+
+    public User getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(User createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public List<Maintenance> getMaintenances() {
+        return maintenances;
+    }
 }
